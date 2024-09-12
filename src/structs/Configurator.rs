@@ -28,7 +28,6 @@ impl Configurator {
     }
 
     pub fn new(_cc: &CreationContext<'_>) -> Self {
-        let mut ok = true;
         let mut settings = IndexMap::new();
 
         let mut path = PathBuf::from(env::var("APPDATA").unwrap());
@@ -36,7 +35,7 @@ impl Configurator {
         path.push("settings.json");
 
         // Get config file data
-        ok = load_changes(&path, &mut settings);
+        let ok = load_changes(&path, &mut settings);
         
         Self {
             ok,
