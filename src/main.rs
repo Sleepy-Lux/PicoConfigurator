@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use std::sync::Arc;
 use eframe::{run_native, NativeOptions};
 use eframe::egui::*;
