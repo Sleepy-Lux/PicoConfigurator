@@ -4,7 +4,7 @@ use eframe::egui::*;
 use indexmap::IndexMap;
 use json::JsonValue;
 
-use crate::{recovery::{BACKUP_JSON, DEFAULT_JSON}, structs::Configurator::Configurator, util::pretty_json::pretty_json};
+use crate::{recovery::{BACKUP_JSON, DEFAULT_JSON}, structs::{Config::load_changes, Configurator::Configurator}, util::pretty_json::pretty_json};
 
 fn write_to_file(path: PathBuf, json: String) {
     let mut file = File::create(path);
@@ -66,12 +66,14 @@ TopBottomPanel::bottom(Id::new("buttons"))
         ui.add_space(2.0); // fix the weird slightly higher then correct middle that egui sets?
         ui.horizontal_centered(|ui| {
             ui.add_space(5.0);
+
             if ui.add_sized(vec2(100.0, height-20.0), 
                 Button::new(RichText::new("Reset All Settings").color(Color32::BLACK))
                     .fill(Color32::RED)
                     .rounding(6.0)
             ).clicked() {
                 write_to_file(main.settings_path.clone(), DEFAULT_JSON.to_string());
+                load_changes(&main.settings_path.clone(), &mut main.settings);
                 main.set_status("Reset All Settings".to_string());
             };
 
@@ -82,6 +84,7 @@ TopBottomPanel::bottom(Id::new("buttons"))
             ).clicked() {
                 unsafe {
                     write_to_file(main.settings_path.clone(), BACKUP_JSON.to_string());
+                    load_changes(&main.settings_path.clone(), &mut main.settings);
                     main.set_status("Reverted Changes".to_string());
                 };
             };
@@ -108,6 +111,7 @@ TopBottomPanel::bottom(Id::new("buttons"))
                     let buf = pretty_str.as_bytes();
                     let _ = file.as_mut().unwrap().write_all(buf);
                     main.set_status("Applied/Saved Changes".to_string());
+                    load_changes(&main.settings_path.clone(), &mut main.settings);
                 };
 
                 let now: SystemTime = SystemTime::now();
