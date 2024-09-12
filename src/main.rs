@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
+use std::vec;
 use std::{env, path::PathBuf};
 use serde_json::{Map, Value};
 use eframe::{run_native, App, CreationContext, NativeOptions};
@@ -12,9 +13,6 @@ struct PicoConfigurator {
     // data variables
     settings: Map<String, Value>,
     current_page: String,
-
-    // visual variables
-    bg: bool
 }
 impl PicoConfigurator {
     fn new(_cc: &CreationContext<'_>) -> Self {
@@ -37,36 +35,15 @@ impl PicoConfigurator {
         };
 
         settings.insert("Home$".to_owned(), 
-            serde_json::from_str("{ \"Welcome!\": \"Thank for downloading my simple project. \\nfeel free to mess around!\"}").unwrap()
-        );
+        serde_json::from_str("{ \"Welcome!\": \"Thank for downloading my simple project. \\nfeel free to mess around!\"}").unwrap()
+    );
 
         Self {
             ok,
 
             settings,
             current_page: "Home$".to_owned(),
-
-            bg: false
         }
-    }
-    fn render_json_object(&mut self, ui: &mut Ui, obj_path: Vec<String>) {
-        let mut obj_data = self.settings.get(&obj_path[0]).unwrap().as_object().unwrap();
-        for item in obj_path.iter().skip(1) {
-            obj_data = self.settings.get(item).unwrap().as_object().unwrap();
-        };
-
-        for (k, v) in obj_data.iter_mut() {
-            let painter = ui.painter();
-            let rect = ui.available_rect_before_wrap(); // Get the available space
-            painter.rect_filled(rect, 2.0, 
-                if self.bg { Color32::from_hex("#303030").unwrap() } else { Color32::TRANSPARENT });
-            
-            ui.horizontal(|ui| {
-                ui.add_space(2.0);
-                ui.label(obj_path);
-            });
-            ui.add_space(2.0)
-        };
     }
 }
 
@@ -80,11 +57,11 @@ impl App for PicoConfigurator {
             for (k, _) in &self.settings {
                 let btn = ui.add_sized(vec2(ui.available_width()-6.0, 15.0), 
                     Button::new(RichText::new(k.replace("$", ""))
-                        .size(ui.available_width()/6.0))
+                        .size(ui.available_width()/5.4))
                         .fill(Color32::TRANSPARENT)
                 );
                 if btn.clicked() {
-                    self.current_page = k.to_string();
+                    self.current_page = k.clone();
                 };
 
                 ui.add_space(2.0);
@@ -126,8 +103,74 @@ impl App for PicoConfigurator {
             };
 
             ui.vertical_centered(|ui| {
-                let obj_key = self.current_page.clone();
-                self.render_json_object(ui, vec![obj_key]);
+                ui.vertical_centered(|ui| {
+                    let obj_key = vec![self.current_page.clone()];
+                    let obj_data = self.settings.get_mut(obj_key.join("").as_str()).unwrap();
+                
+                    fn recursive_render(ui: &mut Ui, bg: &mut bool, obj_data: &mut Value, obj_path: Vec<String>) -> Value {
+                        let mut updated_obj = Map::new();
+                        for (k, v) in obj_data.as_object_mut().unwrap().iter_mut() {
+                            let mut new_path = obj_path.clone();
+                            new_path.push(k.to_string());
+                
+                            let mut updated_value = Value::Null;
+                            if v.is_object() {
+                                updated_value = recursive_render(ui, bg, v, new_path)
+                            } else {
+                                *bg = !*bg;
+
+                                let (res, painter) = ui.allocate_painter(vec2(ui.available_width(), 26.0), Sense::hover());
+                                painter.rect_filled(res.rect, 3.0, 
+                                    if *bg { Color32::from_hex("#202020").unwrap() } 
+                                        else { Color32::TRANSPARENT }
+                                );
+
+                                ui.allocate_ui_at_rect(res.rect, |ui| {
+                                    ui.add_space(3.0);
+                                    ui.horizontal(|ui| {
+                                        ui.add_space(5.0);
+                                        ui.label(obj_path.join("/") + "/" + k);
+                                        
+                                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                            ui.add_space(5.0);
+                                            match v {
+                                                Value::String(ref mut s) => {
+                                                    if ui.add(TextEdit::singleline(s)).changed() {
+                                                        *v = Value::String(s.clone());
+                                                    }
+                                                },
+                                                Value::Bool(ref mut b) => {
+                                                    if ui.add(Checkbox::new(b, "Enable")).changed() {
+                                                        *v = Value::Bool(*b);
+                                                    }
+                                                },
+                                                Value::Number(ref mut n) => {
+                                                    let mut num = n.as_f64().unwrap() as i32;
+                                                    if ui.add(Slider::new(&mut num, 0..=200)).changed() {
+                                                        *v = Value::Number(serde_json::Number::from(num));
+                                                    }
+                                                },
+                                                _ => {
+                                                    ui.label("Unsupported type");
+                                                }
+                                            }
+                                        });
+                                    });
+                                    ui.add_space(3.0);
+                                    
+                                    updated_value = v.clone();
+                                });
+                            };
+                
+                            updated_obj.insert(k.to_string(), updated_value);
+                        }
+                
+                        return Value::Object(updated_obj);
+                    }
+                
+                    // Apply the recursive rendering
+                    *obj_data = recursive_render(ui, &mut true, obj_data, obj_key);
+                });
             });
         });
     }
