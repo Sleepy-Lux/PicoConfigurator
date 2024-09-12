@@ -187,7 +187,7 @@ CentralPanel::default()
                                     match v {
                                         JsonValue::Short(ref mut s) => {
                                             if ui.add(TextEdit::singleline(&mut s.to_string()).desired_width(120.0)).changed() {
-                                                *v = JsonValue::Short(s.clone());
+                                                *v = JsonValue::Short(*s);
                                             }
                                         },
                                         JsonValue::Boolean(ref mut b) => {
@@ -196,10 +196,11 @@ CentralPanel::default()
                                             }
                                         },
                                         JsonValue::Number(ref mut n) => {
-                                            let mut num = n.as_fixed_point_i64(0).unwrap();
-                                            if ui.add(Slider::new(&mut num, 0..=200)).changed() {
+                                            let mut num = (n.as_fixed_point_i64(2).unwrap() as f64) / 100.0;
+                                            let max_value = if obj_path.join("").to_lowercase().contains("bitrate") { 300.0 } else { 100.0 };
+                                            if ui.add(Slider::new(&mut num, 0.0..=max_value)).changed() {
                                                 *v = JsonValue::Number(num.into());
-                                            }
+                                            };
                                         },
                                         _ => {
                                             println!("{:?}", v);

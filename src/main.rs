@@ -9,7 +9,7 @@ fn main() {
     let mut native_options = NativeOptions::default();
 
     // Window size
-    native_options.viewport.inner_size = Some(vec2(600.0, 400.0));
+    native_options.viewport.inner_size = Some(vec2(600.0, 520.0));
 
     // Setup icon
     let image_bytes: &[u8] = include_bytes!("../resources/icon.png");
