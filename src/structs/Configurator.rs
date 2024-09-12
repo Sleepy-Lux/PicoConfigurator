@@ -5,7 +5,7 @@ use eframe::{App, CreationContext};
 
 use crate::modules::gui::render_gui;
 
-use super::Config::load_changes;
+use super::Config::{load_changes, save_changes};
 
 pub struct Configurator {
     // status variable
@@ -55,7 +55,7 @@ impl App for Configurator {
         render_gui(self, ctx);
 
         if before_changes != self.settings {
-
+            save_changes(self);
         };
     }
 }
